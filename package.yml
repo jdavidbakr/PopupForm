@@ -4,6 +4,10 @@ description: "Tools to generate and process PopupForms via AJAX"
 
 author: jdavidbakr
 
+category: Interface
+
+tags: [form,ajax]
+
 sources:
   - "Source/PopupForm.AjaxForm.js"
   - "Source/PopupForm.JSONProcessor.js"
