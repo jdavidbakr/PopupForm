@@ -2,9 +2,7 @@ name: "PopupForm"
 
 description: "Tools to generate and process PopupForms via AJAX"
 
-authors:
-  - Jon Baker
-  - Kenneth Jackson
+author: jdavidbakr
 
 sources:
   - "Source/PopupForm.AjaxForm.js"
