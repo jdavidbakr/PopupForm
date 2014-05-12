@@ -1,0 +1,2 @@
+/usr/local/bin/packager/packager build PopupForm/PopupForm.AjaxForm PopupForm/PopupForm Core/DomReady > js.js
+cat functions.js >> js.js

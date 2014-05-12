@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>PopupForm Example</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="js.js"></script>
+        <style>
+            .mask {
+                position: absolute;
+                opacity: 0.9;
+                filter: alpha(opacity=90);
+                -ms-filter: progid:DXImageTransform.Microsoft.Alpha(Opacity=90);
+                z-index: 2999;
+                background: #000;
+            }
+            .over_mask {
+                position: absolute;
+                padding-top: 30px;
+                top: 0px;
+                z-index: 3000;
+                width: 100%;
+            }
+            a {
+                cursor: pointer;
+            }
+        </style>
+    </head>
+    <body>
+        <a class="popup_form" href="popup_form.html">Click Here</a>
+    </body>
+</html>
