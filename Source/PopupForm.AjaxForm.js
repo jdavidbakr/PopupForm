@@ -25,26 +25,36 @@ provides: PopupForm.AjaxForm
 /*
  AjaxForm is a class that will submit a form via Ajax so you don't have to actually submit the form.
  The posting URL should be in the rel tag of the form container, or can be the action for the form.
-
+ 
  The form will have an additional input, name set in options.ajax_form_field, with a value of "1".
  Use this to verify that the form was indeed submitted via the ajax form, or if the user had javascript turned off.
  It also posts a variable 'HTTP_REFERER' (options.referer_field) that contains the URL of the referer, for
  IE who doesn't pass that in the headers.
-
- When the form is submitted, the resulting JSON is passed to the JSONProcessor.  In addition, the following can be returned:
- - If a message is returned, the form will not execute the completion function unless a value for execute_complete is passed as well.
- - clear_form: Will reset the form.
- - keep_open: Do not execute the complete function
- - execute_complete: Execute the complete function, regardless of any decisions prior.
-
+ 
+ When the form is submitted, a JSON data structure is expected.  It can contain:
+ 
+ message: an alert message will contain this to display to the user
+ redirect: this can contain a URL that the page is redirected to
+ redirect_blank: This can contain a URL that the page is redirected to but the script continues to evaluate.
+ fields: an array of fields that we want to set within the form [{field:id,value:name},{field:id,value:name}]
+ target: If there is no target_selector in the options, this is also tested to see if it exists to be used as a target
+ html: populate the target_selector DOM with this html.
+ sortable_target: If the target is sortable, this is the master element that contains the sortable instance
+ load_div: a selector for a DOM element to load.  Requires url
+ url: The url for load_div
+ keep_open: If true, will not close the form.
+ delete_dom: a selector (id) of a DOM element we want to have deleted.
+ execute: a function that we want to execute upon completion
+ fire_event: 2-part array, first is an id, second is the event to fire on that element.
+ 
  An optional spinner may be used during the form processing.  See the options for details.
-
+ 
  Store in the form 'onSubmit' a function to execute when the form is submitted.
  Store 'onComplete' a function to execute when the form submission gets returned, receives the json as the argument
  Store 'onFail' a function to execute if the form submission fails, receives the json as the argument
-
+ 
  You can require confirmation by putting in the rel tag an object with key 'confirm' and the confirmation message.
-
+ 
  If you want to upload a file, you can do that with an <input type="file"> element.  The form will automatically
  create an iframe to process the upload, and will also set the enctype correctly.  Treat the upload like any
  other form submission.
@@ -64,17 +74,19 @@ PopupForm.AjaxForm = new Class({
         ajax_form_field: 'ajax_form',
         referer_field: 'HTTP_REFERER',
         spinner_container: null,
+        prevent_enter: false, // If true, the enter key will not submit the form
         spinner_options: {
             message: 'Please Wait...',
             fxOptions: {duration: 300}
         },
         submit_selector: null,
         remove_custom_submit_events: true, // Remove any custom submit events
+        target_selector: null, // If set and html is returned in the json, fill object with the html
         content_processor: $empty, // Function to execute on content if loaded
         hidden_class: 'hidden',
         force_iframe_class: 'force_iframe' // add this class to force an iframe even if no file element is found.
     },
-    initialize: function(form, op) {
+    initialize: function (form, op) {
         var current_form = form.retrieve('current_form');
         if ($chk(current_form)) {
             return;
@@ -87,37 +99,44 @@ PopupForm.AjaxForm = new Class({
         if (this.options.remove_custom_submit_events) {
             form.removeEvents('submit');
         }
-        form.addEvent('submit', function(event) {
+        form.addEvent('submit', function (event) {
             if ($chk(event)) {
                 event.stop();
+                if (this.options.prevent_enter) {
+                    if (event.key == 'enter') {
+                        return;
+                    }
+                }
             }
             this.submit_form(event);
         }.bind(this));
         if (this.options.submit_selector) {
-            form.getElements(this.options.submit_selector).each(function(submit) {
-                submit.addEvent('click', function(e) {
+            form.getElements(this.options.submit_selector).each(function (submit) {
+                submit.addEvent('click', function (e) {
                     form.fireEvent('submit');
                     e.stop();
                 });
             });
         }
         // Attach a submit event to all input and select elements on keyup = 'enter'
-        form.getElements('input').each(function(input) {
-            input.addEvent('keydown', function(e) {
-                if (e.key == 'enter') {
-                    form.fireEvent('submit');
-                    e.stop();
-                }
+        if (!this.options.prevent_enter) {
+            form.getElements('input').each(function (input) {
+                input.addEvent('keydown', function (e) {
+                    if (e.key == 'enter') {
+                        form.fireEvent('submit');
+                        e.stop();
+                    }
+                });
             });
-        });
-        form.getElements('select').each(function(input) {
-            input.addEvent('keydown', function(e) {
-                if (e.key == 'enter') {
-                    form.fireEvent('submit');
-                    e.stop();
-                }
+            form.getElements('select').each(function (input) {
+                input.addEvent('keydown', function (e) {
+                    if (e.key == 'enter') {
+                        form.fireEvent('submit');
+                        e.stop();
+                    }
+                });
             });
-        });
+        }
         if (this.options.use_spinner) {
             this.spinner = new Spinner(this.options.spinner_container, this.options.spinner_options);
         }
@@ -142,7 +161,7 @@ PopupForm.AjaxForm = new Class({
         }
         // Look to see if we have any files, if we do we have to submit the form through an iframe.
         var has_file = false;
-        form.getElements('input').each(function(item) {
+        form.getElements('input').each(function (item) {
             if (item.get('type') == 'file') {
                 has_file = true;
             }
@@ -160,7 +179,7 @@ PopupForm.AjaxForm = new Class({
             form.set('target', id);
         }
     },
-    get_label: function(item) {
+    get_label: function (item) {
         // When passed an item, returns the label if we can find it.
         var label;
         label = item.getPrevious('label');
@@ -176,7 +195,7 @@ PopupForm.AjaxForm = new Class({
             return this.get_label(item.getParent());
         }
     },
-    submit_form: function(e) {
+    submit_form: function (e) {
         // Check for a confirm in the rel tag
         var rel = this.form.get('rel');
         if ($chk(rel)) {
@@ -263,13 +282,13 @@ PopupForm.AjaxForm = new Class({
             }
         }
     },
-    form_failure: function() {
+    form_failure: function () {
         if (this.options.use_spinner) {
             this.spinner.hide();
         }
         alert('An error has occurred. Please try again.');
     },
-    form_success: function(json) {
+    form_success: function (json) {
         this.options.onFormSuccess(json);
         if (this.options.hidden_class) {
             this.form.removeClass(this.options.hidden_class);
@@ -314,13 +333,6 @@ PopupForm.AjaxForm = new Class({
         if (execute_complete) {
             var complete_action = this.form.retrieve('onComplete');
             if (complete_action) {
-                // Destroy the iframe in the future, it must still be loading.
-                /* Removing this, because in a popup if we don't close the form we lose the ability to submit.
-                 if ($chk(this.iframe)) {
-                 var delete_iframe = function(){this.iframe.destroy()};
-                 delete_iframe.delay(1000,this);
-                 }
-                 */
                 complete_action(json);
             }
         } else {
@@ -328,6 +340,15 @@ PopupForm.AjaxForm = new Class({
             if (fail_action) {
                 fail_action(json);
             }
+        }
+    },
+    process_content: function (div) {
+        // Call the parent content processor
+        this.parent(div);
+        // See if we have a processContent stored in the form
+        var processContent = this.form.retrieve('processContent');
+        if (processContent) {
+            processContent(div);
         }
     }
 });
