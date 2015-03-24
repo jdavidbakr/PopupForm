@@ -90,6 +90,13 @@ PopupForm.JSONProcessor = new Class({
             if (json.redirect_blank) {
                 window.open(json.redirect_blank, '_blank');
             }
+            // Delete any elements now
+            if (json.delete_dom) {
+                var delete_dom = $(json.delete_dom);
+                if ($chk(delete_dom)) {
+                    delete_dom.destroy();
+                }
+            }
             // Check for fields to set
             if (json.fields) {
                 json.fields.each(function(field) {
@@ -117,7 +124,7 @@ PopupForm.JSONProcessor = new Class({
                 } else {
                     target.set('html', json.html);
                 }
-                this.options.content_processor(target);
+                this.process_content(target);
                 // We can receive json.sortable_target to add the target to the sortable instance
                 // stored in sortable_target
                 if (json.sortable_target && $(json.sortable_target)) {
@@ -130,7 +137,7 @@ PopupForm.JSONProcessor = new Class({
 
             if (json.setHtml && this.item) {
                 this.item.set('html', json.setHtml);
-                this.options.content_processor(this.item);
+                this.process_content(this.item);
             }
 
             if (json.elements) {
@@ -138,6 +145,9 @@ PopupForm.JSONProcessor = new Class({
                     var target;
                     if (element.target) {
                         target = $(element.target);
+                        if (!target) {
+                            return;
+                        }
                         if (element.html) {
                             if (element.add_to_target) {
                                 var htmlelement = new Element('div');
@@ -150,7 +160,7 @@ PopupForm.JSONProcessor = new Class({
                             } else {
                                 target.set('html', element.html);
                             }
-                            this.options.content_processor(target);
+                            this.process_content(target);
                             // We can receive element.sortable_target to add the target to the sortable instance
                             // stored in sortable_target
                             if ($chk(element.sortable_target) && $chk($(element.sortable_target))) {
@@ -159,6 +169,15 @@ PopupForm.JSONProcessor = new Class({
                                     sortable.addLists(target.getChildren());
                                 }
                             }
+                        }
+                        if (element.url) {
+                            var req = new Request.HTML({
+                                'url': element.url,
+                                'update': target,
+                                'onSuccess': function() {
+                                    this.process_content(target);
+                                }.bind(this)
+                            }).post();
                         }
                         if (element.attributes) {
                             element.attributes.each(function(attribute) {
@@ -188,16 +207,10 @@ PopupForm.JSONProcessor = new Class({
                         'url': json.url,
                         'update': load_div,
                         onComplete: function() {
-                            this.options.content_processor(load_div);
+                            this.process_content(load_div);
                             load_div.fireEvent('change');
                         }.bind(this)
                     }).post();
-                }
-            }
-            if (json.delete_dom) {
-                var delete_dom = $(json.delete_dom);
-                if ($chk(delete_dom)) {
-                    delete_dom.destroy();
                 }
             }
 
@@ -223,5 +236,8 @@ PopupForm.JSONProcessor = new Class({
                 }
             }
         }
+    },
+    process_content: function(div) {
+        this.options.content_processor(div);
     }
-})
+});
