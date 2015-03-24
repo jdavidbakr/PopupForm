@@ -35,7 +35,11 @@ var PopupForm = new Class({
 
     options: {
         container_class: 'over_mask', // The class for the form container
-        mask_options: {},
+        mask_options: {
+            onShow: function() {
+                this.element.setStyle('position', 'fixed');
+            }
+        },
         show_mask_immediately: true, // Set to false to show the mask after loading
         popup_id: 'popup_item', // ID to give the popup container so we can easily access it to close it.
         posting_data: null, // The posting data (query string) when getting the form
@@ -63,6 +67,13 @@ var PopupForm = new Class({
         // Create the mask
         // Add a click event for the item
         item.addEvent(this.options.event_type, this.open_form.bind(this));
+
+        // Any anchors within here should not propagate
+        item.getElements('a').each(function(a) {
+            a.addEvent(this.options.event_type, function(e) {
+                e.stopPropagation();
+            });
+        },this);
 
         this.close_form_function = function(e) {
             e.stop();
@@ -116,8 +127,11 @@ var PopupForm = new Class({
         }
     },
     process_form: function() {
+        this.process_form_content(this.container);
+    },
+    process_form_content: function(container) {
         //this.mask.show();
-        this.container.getElements(this.options.cancel_selector).each(function(item) {
+        container.getElements(this.options.cancel_selector).each(function(item) {
             item.addEvent('click', this.close_form_function);
         }, this);
         if (this.options.any_click_cancels) {
@@ -127,12 +141,12 @@ var PopupForm = new Class({
             this.esc_test_bound = this.esc_test.bind(this);
             $(document.body).addEvent('keyup', this.esc_test_bound);
         }
-        this.container.getElements(this.options.close_anchor).each(function(item) {
+        container.getElements(this.options.close_anchor).each(function(item) {
             // Don't use the close_formr_function here because we want the event to propogate
             item.addEvent('click', this.close_form.bind(this));
         }, this);
-        this.container.getElements('form').each(this.store_data_into_form.bind(this));
-        this.options.content_processor(this.container);
+        container.getElements('form').each(this.store_data_into_form.bind(this));
+        this.options.content_processor(container);
         // Move the document scroll to the top, saving the current scroll location
         this.saved_scroll = $(document.body).getScroll();
         $(document.body).scrollTo(0, 0);
@@ -149,6 +163,7 @@ var PopupForm = new Class({
             this.container.addClass(this.options.hidden_class);
         }.bind(this));
         form.store('onComplete', this.close_form.bind(this));
+        form.store('processContent', this.process_form_content.bind(this));
     },
     close_form: function(json) {
         // Make sure we have a form
