@@ -15,8 +15,8 @@ author:
 requires:
  - PopupForm.AjaxForm
 
-provides:
- - PopupForm.StringFormatter
+provides: PopupForm.StringFormatter
+
 ...
 */
 
