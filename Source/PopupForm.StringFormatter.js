@@ -12,10 +12,11 @@ name: PopupForm.StringFormatter
 author:
  - Jon Baker
 
+provides:
+ - PopupForm.StringFormatter
+
 requires:
  - PopupForm.AjaxForm
-
-provides: PopupForm.StringFormatter
 
 ...
 */
