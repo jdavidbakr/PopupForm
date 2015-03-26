@@ -20,7 +20,7 @@ provides: PopupForm.StringFormatter
 ...
 */
 
-var StringFormatter = new Class({
+PopupForm.StringFormatter = new Class({
     // This class is used to format numeric strings i.e. for phone numbers, credit cards, etc
     // To use, implement this into any class that needs it and you'll have the format_template function
     Implements: Options,
@@ -157,7 +157,7 @@ var StringFormatter = new Class({
 // Extend PopupForm.AjaxForm
 PopupForm.AjaxForm = new Class({
     Extends: PopupForm.AjaxForm,
-    Implements: StringFormatter,
+    Implements: PopupForm.StringFormatter,
     options: {
         total_count_selector: '.total_count', // Fields that will be summed for the total
         total_field_id: 'total_field', // The field that will contain the total
