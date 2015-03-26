@@ -12,3 +12,4 @@ sources:
   - "Source/PopupForm.AjaxForm.js"
   - "Source/PopupForm.JSONProcessor.js"
   - "Source/PopupForm.js"
+  - "Source/PopupForm.StringFormatter.js"    

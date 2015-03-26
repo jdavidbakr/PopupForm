@@ -139,3 +139,49 @@ Here are the options for the AjaxForm class:
 * remove_custom_submit_events: If true, remove any custom submit events. Defaults to true.
 * hidden_class: The class we will apply to the form when submitted if we are not using a spinner.  Default 'hidden'
 * force_iframe_class: add this class to the form force an iframe even if no file element is found. Default 'force_iframe'
+
+StringFormatter Options
+----------------
+PopupForm.StringFormatter includes an extendor for PopupForm.AjaxForm so that all of the hooks
+are automatically added. It forces formatting on fields based on a template. Several formatting
+options are bundled by default, but it is easy to add additional formatting options and override the default
+formatting if desired.
+
+Simply assign the class to the fields to get it to hook into the formatter:
+* telephone: formats a phone number (XXX) XXX-XXXX
+* zip: formats a zip code XXXXX
+* format_date: forces a date format XX/XX/XXXX
+* numeric_only: requires numbers 
+* cc_num: Credit card number (with spaces between number blocks)
+* cc_type: Optional, if a select element has this class it will change to the appropriate card type based on the number being entered
+* routing: Bank routing number (9 digits) XXXXXXXXX
+* ssn: Social Security Number XXX-XX-XXXX
+
+Also included is a summing total based on fields within the form. As the individual fields are updated, the total value
+automatically updates.
+ * total_count: assign this class to all fields to be used in the summation
+ * total_field: the ID for the input element that will contain the calculated total
+ * total_text: the ID for any dom element that should display the total as text (will have its html injected into)
+
+Here is a sample to extend into other field types - use this in a file the requires PopupForm.StringFormatter
+
+   PopupForm.AjaxForm = new Class({
+     Extends: PopupForm.AjaxForm,
+   
+     options: {
+       code_format: 'XX-XXX-XX',
+       code_format_selector: '.email_code'
+     },
+   
+     init_hooks: function(form) {
+       this.parent(form);
+       // Code formatter
+       form.getElements(this.options.code_format_selector).each(function(item) {
+         item.store('ajax_form',this);
+         item.addEvent('keyup',function() {
+           this.format_other_field(item,this.options.code_format);
+         }.bind(this));
+       },this);
+     }
+   });
+
