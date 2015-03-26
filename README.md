@@ -165,23 +165,23 @@ automatically updates.
 
 Here is a sample to extend into other field types - use this in a file the requires PopupForm.StringFormatter
 
-   PopupForm.AjaxForm = new Class({
-     Extends: PopupForm.AjaxForm,
-   
-     options: {
-       code_format: 'XX-XXX-XX',
-       code_format_selector: '.email_code'
-     },
-   
-     init_hooks: function(form) {
-       this.parent(form);
-       // Code formatter
-       form.getElements(this.options.code_format_selector).each(function(item) {
-         item.store('ajax_form',this);
-         item.addEvent('keyup',function() {
-           this.format_other_field(item,this.options.code_format);
-         }.bind(this));
-       },this);
-     }
-   });
+    PopupForm.AjaxForm = new Class({
+      Extends: PopupForm.AjaxForm,
+    
+      options: {
+        code_format: 'XX-XXX-XX',
+        code_format_selector: '.email_code'
+      },
+    
+      init_hooks: function(form) {
+        this.parent(form);
+        // Code formatter
+        form.getElements(this.options.code_format_selector).each(function(item) {
+          item.store('ajax_form',this);
+          item.addEvent('keyup',function() {
+            this.format_other_field(item,this.options.code_format);
+          }.bind(this));
+        },this);
+      }
+    });
 
