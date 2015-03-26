@@ -1,6 +1,8 @@
 PopupForm
 =========
 
+![Screenshot](https://s3.amazonaws.com/catalyst-public/MooTools-Screenshots/popupform_screenshot.png)
+
 This series of classes creates a popup element that can contain a form that will be
 processed via an AJAX callback upon submission. The additional components can be used independently if desired.
 
