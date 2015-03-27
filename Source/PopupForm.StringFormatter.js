@@ -7,7 +7,7 @@ license: MIT-style
 
 name: PopupForm.StringFormatter
 
-author:
+authors:
  - Jon Baker
 
 requires:
