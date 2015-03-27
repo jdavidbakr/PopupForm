@@ -1,9 +1,7 @@
 /*
 ---
 
-description: A toolset to auto-format strings in a form. Includes an extension of PopupForm.AjaxForm
-  to extend that class so all you have to do is link this file and use the PopupForm.AjaxForm as you
-  would otherwise.
+description: A toolset to auto-format strings in a form. Includes an extension of PopupForm.AjaxForm to extend that class so all you have to do is link this file and use the PopupForm.AjaxForm as you would otherwise.
 
 license: MIT-style
 
@@ -12,11 +10,10 @@ name: PopupForm.StringFormatter
 author:
  - Jon Baker
 
-provides:
- - PopupForm.StringFormatter
-
 requires:
  - PopupForm.AjaxForm
+
+provides: PopupForm.StringFormatter
 
 ...
 */
