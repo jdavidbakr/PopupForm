@@ -25,14 +25,14 @@ provides: PopupForm.AjaxForm
 /*
  AjaxForm is a class that will submit a form via Ajax so you don't have to actually submit the form.
  The posting URL should be in the rel tag of the form container, or can be the action for the form.
- 
+
  The form will have an additional input, name set in options.ajax_form_field, with a value of "1".
  Use this to verify that the form was indeed submitted via the ajax form, or if the user had javascript turned off.
  It also posts a variable 'HTTP_REFERER' (options.referer_field) that contains the URL of the referer, for
  IE who doesn't pass that in the headers.
- 
+
  When the form is submitted, a JSON data structure is expected.  It can contain:
- 
+
  message: an alert message will contain this to display to the user
  redirect: this can contain a URL that the page is redirected to
  redirect_blank: This can contain a URL that the page is redirected to but the script continues to evaluate.
@@ -46,15 +46,15 @@ provides: PopupForm.AjaxForm
  delete_dom: a selector (id) of a DOM element we want to have deleted.
  execute: a function that we want to execute upon completion
  fire_event: 2-part array, first is an id, second is the event to fire on that element.
- 
+
  An optional spinner may be used during the form processing.  See the options for details.
- 
+
  Store in the form 'onSubmit' a function to execute when the form is submitted.
  Store 'onComplete' a function to execute when the form submission gets returned, receives the json as the argument
  Store 'onFail' a function to execute if the form submission fails, receives the json as the argument
- 
+
  You can require confirmation by putting in the rel tag an object with key 'confirm' and the confirmation message.
- 
+
  If you want to upload a file, you can do that with an <input type="file"> element.  The form will automatically
  create an iframe to process the upload, and will also set the enctype correctly.  Treat the upload like any
  other form submission.
@@ -171,8 +171,6 @@ PopupForm.AjaxForm = new Class({
             this.iframe = new IFrame({
                 'name': id,
                 'style': 'display: none'
-                        //}).inject(form.getParent());
-                        // injecting into the parent form caused an infinite 'loadeng' state when the iframe is destroyed.
             }).inject($(document.body));
             form.set('method', 'post');
             form.set('enctype', 'multipart/form-data');
@@ -206,8 +204,7 @@ PopupForm.AjaxForm = new Class({
                         return;
                     }
                 }
-            }
-            catch (err) {
+            } catch (err) {
                 // If rel is not a valid json, this will fail, so this is just to prevent any errors.
             }
         }
@@ -299,8 +296,10 @@ PopupForm.AjaxForm = new Class({
             // Surely there is a mootools method for this but I can't seem to find it.
             // This came from http://roneiv.wordpress.com/2008/01/18/get-the-content-of-an-iframe-in-javascript-crossbrowser-solution-for-both-ie-and-firefox/
             var content = this.iframe.contentWindow.document.body.innerHTML;
-            if (content) {
-                json = JSON.decode(content);
+            // Strip anything that's not JSON
+            var json_matches = content.match(/[^{]*([^}]*})/);
+            if (json_matches[0]) {
+                json = JSON.decode(json_matches[1]);
             }
         }
         if (json) {

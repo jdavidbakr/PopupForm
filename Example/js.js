@@ -7,7 +7,7 @@ description: The heart of MooTools.
 
 license: MIT-style license.
 
-copyright: Copyright (c) 2006-2012 [Valerio Proietti](http://mad4milk.net/).
+copyright: Copyright (c) 2006-2014 [Valerio Proietti](http://mad4milk.net/).
 
 authors: The MooTools production team (http://mootools.net/developers/)
 
@@ -19,12 +19,12 @@ provides: [Core, MooTools, Type, typeOf, instanceOf, Native]
 
 ...
 */
-
+/*! MooTools: the javascript framework. license: MIT-style license. copyright: Copyright (c) 2006-2014 [Valerio Proietti](http://mad4milk.net/).*/
 (function(){
 
 this.MooTools = {
-	version: '1.5.0dev',
-	build: '%build%'
+	version: '1.5.1',
+	build: '0542c135fdeb7feed7d9917e01447a408f22c876'
 };
 
 // typeOf, instanceOf
@@ -741,7 +741,7 @@ description: Contains Array Prototypes like each, contains, and erase.
 
 license: MIT-style license.
 
-requires: Type
+requires: [Type]
 
 provides: Array
 
@@ -884,7 +884,7 @@ Array.implement({
 		if (this.length != 3) return null;
 		var rgb = this.map(function(value){
 			if (value.length == 1) value += value;
-			return value.toInt(16);
+			return parseInt(value, 16);
 		});
 		return (array) ? rgb : 'rgb(' + rgb + ')';
 	},
@@ -1106,7 +1106,7 @@ description: Contains String Prototypes like camelCase, capitalize, test, and to
 
 license: MIT-style license.
 
-requires: Type
+requires: [Type, Array]
 
 provides: String
 
@@ -1210,37 +1210,63 @@ provides: [Browser, Window, Document]
 var document = this.document;
 var window = document.window = this;
 
-var ua = navigator.userAgent.toLowerCase(),
-	platform = navigator.platform.toLowerCase(),
-	UA = ua.match(/(opera|ie|firefox|chrome|version)[\s\/:]([\w\d\.]+)?.*?(safari|version[\s\/:]([\w\d\.]+)|$)/) || [null, 'unknown', 0],
-	mode = UA[1] == 'ie' && document.documentMode;
+var parse = function(ua, platform){
+	ua = ua.toLowerCase();
+	platform = (platform ? platform.toLowerCase() : '');
 
-var Browser = this.Browser = {
+	var UA = ua.match(/(opera|ie|firefox|chrome|trident|crios|version)[\s\/:]([\w\d\.]+)?.*?(safari|(?:rv[\s\/:]|version[\s\/:])([\w\d\.]+)|$)/) || [null, 'unknown', 0];
 
-	extend: Function.prototype.extend,
+	if (UA[1] == 'trident'){
+		UA[1] = 'ie';
+		if (UA[4]) UA[2] = UA[4];
+	} else if (UA[1] == 'crios'){
+		UA[1] = 'chrome';
+	}
 
-	name: (UA[1] == 'version') ? UA[3] : UA[1],
+	platform = ua.match(/ip(?:ad|od|hone)/) ? 'ios' : (ua.match(/(?:webos|android)/) || platform.match(/mac|win|linux/) || ['other'])[0];
+	if (platform == 'win') platform = 'windows';
 
-	version: mode || parseFloat((UA[1] == 'opera' && UA[4]) ? UA[4] : UA[2]),
+	return {
+		extend: Function.prototype.extend,
+		name: (UA[1] == 'version') ? UA[3] : UA[1],
+		version: parseFloat((UA[1] == 'opera' && UA[4]) ? UA[4] : UA[2]),
+		platform: platform
+	};
+};
 
-	Platform: {
-		name: ua.match(/ip(?:ad|od|hone)/) ? 'ios' : (ua.match(/(?:webos|android)/) || platform.match(/mac|win|linux/) || ['other'])[0]
-	},
+var Browser = this.Browser = parse(navigator.userAgent, navigator.platform);
 
+if (Browser.name == 'ie'){
+	Browser.version = document.documentMode;
+}
+
+Browser.extend({
 	Features: {
 		xpath: !!(document.evaluate),
 		air: !!(window.runtime),
 		query: !!(document.querySelector),
 		json: !!(window.JSON)
 	},
+	parseUA: parse
+});
 
-	Plugins: {}
-
-};
-
+//<1.4compat>
 Browser[Browser.name] = true;
 Browser[Browser.name + parseInt(Browser.version, 10)] = true;
-Browser.Platform[Browser.Platform.name] = true;
+
+if (Browser.name == 'ie' && Browser.version >= '11'){
+	delete Browser.ie;
+}
+
+var platform = Browser.platform;
+if (platform == 'windows'){
+	platform = 'win';
+}
+Browser.Platform = {
+	name: platform
+};
+Browser.Platform[platform] = true;
+//</1.4compat>
 
 // Request
 
@@ -1283,9 +1309,11 @@ var version = (Function.attempt(function(){
 	return new ActiveXObject('ShockwaveFlash.ShockwaveFlash').GetVariable('$version');
 }) || '0 r0').match(/\d+/g);
 
-Browser.Plugins.Flash = {
-	version: Number(version[0] || '0.' + version[1]) || 0,
-	build: Number(version[2]) || 0
+Browser.Plugins = {
+	Flash: {
+		version: Number(version[0] || '0.' + version[1]) || 0,
+		build: Number(version[2]) || 0
+	}
 };
 
 //</1.4compat>
@@ -1354,6 +1382,7 @@ if (this.attachEvent && !this.addEventListener){
 	var unloadEvent = function(){
 		this.detachEvent('onunload', unloadEvent);
 		document.head = document.html = document.window = null;
+		window = this.Window = document = null;
 	};
 	this.attachEvent('onunload', unloadEvent);
 }
@@ -1431,7 +1460,7 @@ if (Browser.opera){
 }
 
 if (Browser.name == 'unknown'){
-	switch ((ua.match(/(?:webkit|khtml|gecko)/) || [])[0]){
+	switch ((navigator.userAgent.toLowerCase().match(/(?:webkit|khtml|gecko)/) || [])[0]){
 		case 'webkit':
 		case 'khtml':
 			Browser.Engine.webkit = true;
@@ -1844,7 +1873,7 @@ local.setDocument = function(document){
 
 		// native matchesSelector function
 
-		features.nativeMatchesSelector = root.matchesSelector || /*root.msMatchesSelector ||*/ root.mozMatchesSelector || root.webkitMatchesSelector;
+		features.nativeMatchesSelector = root.matches || /*root.msMatchesSelector ||*/ root.mozMatchesSelector || root.webkitMatchesSelector;
 		if (features.nativeMatchesSelector) try {
 			// if matchesSelector trows errors on incorrect sintaxes we can use it
 			features.nativeMatchesSelector.call(root, ':slick');
@@ -1857,7 +1886,7 @@ local.setDocument = function(document){
 		root.slick_expando = 1;
 		delete root.slick_expando;
 		features.getUID = this.getUIDHTML;
-	} catch(e) {
+	} catch(e){
 		features.getUID = this.getUIDXML;
 	}
 
@@ -1878,9 +1907,9 @@ local.setDocument = function(document){
 
 	// hasAttribute
 
-	features.hasAttribute = (root && this.isNativeCode(root.hasAttribute)) ? function(node, attribute) {
+	features.hasAttribute = (root && this.isNativeCode(root.hasAttribute)) ? function(node, attribute){
 		return node.hasAttribute(attribute);
-	} : function(node, attribute) {
+	} : function(node, attribute){
 		node = node.getAttributeNode(attribute);
 		return !!(node && (node.specified || node.nodeValue));
 	};
@@ -1962,7 +1991,7 @@ local.search = function(context, expression, append, first){
 
 		/*<simple-selectors-override>*/
 		var simpleSelector = expression.match(reSimpleSelector);
-		simpleSelectors: if (simpleSelector) {
+		simpleSelectors: if (simpleSelector){
 
 			var symbol = simpleSelector[1],
 				name = simpleSelector[2],
@@ -2015,7 +2044,7 @@ local.search = function(context, expression, append, first){
 		/*</simple-selectors-override>*/
 
 		/*<query-selector-override>*/
-		querySelector: if (context.querySelectorAll) {
+		querySelector: if (context.querySelectorAll){
 
 			if (!this.isHTMLDocument
 				|| qsaFailExpCache[expression]
@@ -2044,7 +2073,7 @@ local.search = function(context, expression, append, first){
 			try {
 				if (first) return context.querySelector(_expression) || null;
 				else nodes = context.querySelectorAll(_expression);
-			} catch(e) {
+			} catch(e){
 				qsaFailExpCache[expression] = 1;
 				break querySelector;
 			} finally {
@@ -2243,14 +2272,14 @@ local.matchNode = function(node, selector){
 	if (this.isHTMLDocument && this.nativeMatchesSelector){
 		try {
 			return this.nativeMatchesSelector.call(node, selector.replace(/\[([^=]+)=\s*([^'"\]]+?)\s*\]/g, '[$1="$2"]'));
-		} catch(matchError) {}
+		} catch(matchError){}
 	}
 
 	var parsed = this.Slick.parse(selector);
 	if (!parsed) return true;
 
 	// simple (single) selectors
-	var expressions = parsed.expressions, simpleExpCounter = 0, i;
+	var expressions = parsed.expressions, simpleExpCounter = 0, i, currentExpression;
 	for (i = 0; (currentExpression = expressions[i]); i++){
 		if (currentExpression.length == 1){
 			var exp = currentExpression[0];
@@ -2678,7 +2707,7 @@ license: MIT-style license.
 
 requires: [Window, Document, Array, String, Function, Object, Number, Slick.Parser, Slick.Finder]
 
-provides: [Element, Elements, $, $$, Iframe, Selectors]
+provides: [Element, Elements, $, $$, IFrame, Selectors]
 
 ...
 */
@@ -2883,20 +2912,44 @@ var escapeQuotes = function(html){
 };
 /*</ltIE8>*/
 
+/*<ltIE9>*/
+// #2479 - IE8 Cannot set HTML of style element
+var canChangeStyleHTML = (function(){
+    var div = document.createElement('style'),
+        flag = false;
+    try {
+        div.innerHTML = '#justTesing{margin: 0px;}';
+        flag = !!div.innerHTML;
+    } catch(e){}
+    return flag;
+})();
+/*</ltIE9>*/
+
 Document.implement({
 
 	newElement: function(tag, props){
-		if (props && props.checked != null) props.defaultChecked = props.checked;
-		/*<ltIE8>*/// Fix for readonly name and type properties in IE < 8
-		if (createElementAcceptsHTML && props){
-			tag = '<' + tag;
-			if (props.name) tag += ' name="' + escapeQuotes(props.name) + '"';
-			if (props.type) tag += ' type="' + escapeQuotes(props.type) + '"';
-			tag += '>';
-			delete props.name;
-			delete props.type;
+		if (props){
+			if (props.checked != null) props.defaultChecked = props.checked;
+			if ((props.type == 'checkbox' || props.type == 'radio') && props.value == null) props.value = 'on'; 
+			/*<ltIE9>*/ // IE needs the type to be set before changing content of style element
+			if (!canChangeStyleHTML && tag == 'style'){
+				var styleElement = document.createElement('style');
+				styleElement.setAttribute('type', 'text/css');
+				if (props.type) delete props.type;
+				return this.id(styleElement).set(props);
+			}
+			/*</ltIE9>*/
+			/*<ltIE8>*/// Fix for readonly name and type properties in IE < 8
+			if (createElementAcceptsHTML){
+				tag = '<' + tag;
+				if (props.name) tag += ' name="' + escapeQuotes(props.name) + '"';
+				if (props.type) tag += ' type="' + escapeQuotes(props.type) + '"';
+				tag += '>';
+				delete props.name;
+				delete props.type;
+			}
+			/*</ltIE8>*/
 		}
-		/*</ltIE8>*/
 		return this.id(this.createElement(tag)).set(props);
 	}
 
@@ -3204,6 +3257,21 @@ Object.forEach(properties, function(real, key){
 	};
 });
 
+/*<ltIE9>*/
+propertySetters.text = (function(setter){
+	return function(node, value){
+		if (node.get('tag') == 'style') node.set('html', value);
+		else node[properties.text] = value;
+	};
+})(propertySetters.text);
+
+propertyGetters.text = (function(getter){
+	return function(node){
+		return (node.get('tag') == 'style') ? node.innerHTML : getter(node);
+	};
+})(propertyGetters.text);
+/*</ltIE9>*/
+
 // Booleans
 
 var bools = [
@@ -3262,15 +3330,42 @@ el = null;
 /* </webkit> */
 
 /*<IE>*/
-var input = document.createElement('input');
+
+/*<ltIE9>*/
+// #2479 - IE8 Cannot set HTML of style element
+var canChangeStyleHTML = (function(){
+    var div = document.createElement('style'),
+        flag = false;
+    try {
+        div.innerHTML = '#justTesing{margin: 0px;}';
+        flag = !!div.innerHTML;
+    } catch(e){}
+    return flag;
+})();
+/*</ltIE9>*/
+
+var input = document.createElement('input'), volatileInputValue, html5InputSupport;
+
+// #2178
 input.value = 't';
 input.type = 'submit';
-if (input.value != 't') propertySetters.type = function(node, type){
-	var value = node.value;
-	node.type = type;
-	node.value = value;
-};
+volatileInputValue = input.value != 't';
+
+// #2443 - IE throws "Invalid Argument" when trying to use html5 input types
+try {
+	input.type = 'email';
+	html5InputSupport = input.type == 'email';
+} catch(e){}
+
 input = null;
+
+if (volatileInputValue || !html5InputSupport) propertySetters.type = function(node, type){
+	try {
+		var value = node.value;
+		node.type = type;
+		node.value = value;
+	} catch (e){}
+};
 /*</IE>*/
 
 /* getProperty, setProperty */
@@ -3280,9 +3375,29 @@ var pollutesGetAttribute = (function(div){
 	div.random = 'attribute';
 	return (div.getAttribute('random') == 'attribute');
 })(document.createElement('div'));
+
+var hasCloneBug = (function(test){
+	test.innerHTML = '<object><param name="should_fix" value="the unknown" /></object>';
+	return test.cloneNode(true).firstChild.childNodes.length != 1;
+})(document.createElement('div'));
 /* </ltIE9> */
 
 var hasClassList = !!document.createElement('div').classList;
+
+var classes = function(className){
+	var classNames = (className || '').clean().split(" "), uniques = {};
+	return classNames.filter(function(className){
+		if (className !== "" && !uniques[className]) return uniques[className] = className;
+	});
+};
+
+var addToClassList = function(name){
+	this.classList.add(name);
+};
+
+var removeFromClassList = function(name){
+	this.classList.remove(name);
+};
 
 Element.implement({
 
@@ -3365,25 +3480,27 @@ Element.implement({
 		return this;
 	},
 
-	hasClass: hasClassList ? function(className) {
+	hasClass: hasClassList ? function(className){
 		return this.classList.contains(className);
 	} : function(className){
-		return (' ' + this.className.clean() + ' ').indexOf(' ' + className + ' ') > -1;
+		return classes(this.className).contains(className);
 	},
 
-	addClass: hasClassList ? function(className) {
-		this.classList.add(className);
+	addClass: hasClassList ? function(className){
+		classes(className).forEach(addToClassList, this);
 		return this;
 	} : function(className){
-		if (!this.hasClass(className)) this.className = (this.className + ' ' + className).clean();
+		this.className = classes(className + ' ' + this.className).join(' ');
 		return this;
 	},
 
-	removeClass: hasClassList ? function(className) {
-		this.classList.remove(className);
+	removeClass: hasClassList ? function(className){
+		classes(className).forEach(removeFromClassList, this);
 		return this;
 	} : function(className){
-		this.className = this.className.replace(new RegExp('(^|\\s)' + className + '(?:\\s|$)'), '$1');
+		var classNames = classes(this.className);
+		classes(className).forEach(classNames.erase, classNames);
+		this.className = classNames.join(' ');
 		return this;
 	},
 
@@ -3554,7 +3671,7 @@ Element.implement({
 		}
 
 		/*<ltIE9>*/
-		if (Browser.ie){
+		if (hasCloneBug){
 			var co = clone.getElementsByTagName('object'), to = this.getElementsByTagName('object');
 			for (i = co.length; i--;) co[i].outerHTML = to[i].outerHTML;
 		}
@@ -3649,11 +3766,13 @@ Element.Properties.html = {
 	set: function(html){
 		if (html == null) html = '';
 		else if (typeOf(html) == 'array') html = html.join('');
-		this.innerHTML = html;
-	},
 
+		/*<ltIE9>*/
+		if (this.styleSheet && !canChangeStyleHTML) this.styleSheet.cssText = html;
+		else /*</ltIE9>*/this.innerHTML = html;
+	},
 	erase: function(){
-		this.innerHTML = '';
+		this.set('html', '');
 	}
 
 };
@@ -3701,6 +3820,10 @@ if (!supportsTableInnerHTML || !supportsTRInnerHTML || !supportsHTML5Elements){
 		translations.thead = translations.tfoot = translations.tbody;
 
 		return function(html){
+
+			/*<ltIE9>*/
+			if (this.styleSheet) return set.call(this, html);
+			/*</ltIE9>*/
 			var wrap = translations[this.get('tag')];
 			if (!wrap && !supportsHTML5Elements) wrap = [0, '', ''];
 			if (!wrap) return set.call(this, html);
@@ -3967,7 +4090,7 @@ this.Events = new Class({
 		type = removeOn(type);
 		var events = this.$events[type];
 		if (events && !fn.internal){
-			var index =  events.indexOf(fn);
+			var index = events.indexOf(fn);
 			if (index != -1) delete events[index];
 		}
 		return this;
@@ -4045,7 +4168,8 @@ var Request = this.Request = new Class({
 		onException: function(headerName, value){},
 		onTimeout: function(){},
 		user: '',
-		password: '',*/
+		password: '',
+		withCredentials: false,*/
 		url: '',
 		data: '',
 		headers: {
@@ -4083,7 +4207,10 @@ var Request = this.Request = new Class({
 		}.bind(this));
 		xhr.onreadystatechange = empty;
 		if (progressSupport) xhr.onprogress = xhr.onloadstart = empty;
-		clearTimeout(this.timer);
+		if (this.timer){
+			clearTimeout(this.timer);
+			delete this.timer;
+		}
 
 		this.response = {text: this.xhr.responseText || '', xml: this.xhr.responseXML};
 		if (this.options.isSuccess.call(this, this.status))
@@ -4208,7 +4335,7 @@ var Request = this.Request = new Class({
 		}
 
 		xhr.open(method.toUpperCase(), url, this.options.async, this.options.user, this.options.password);
-		if (this.options.user && 'withCredentials' in xhr) xhr.withCredentials = true;
+		if ((/*<1.4compat>*/this.options.user || /*</1.4compat>*/this.options.withCredentials) && 'withCredentials' in xhr) xhr.withCredentials = true;
 
 		xhr.onreadystatechange = this.onStateChange.bind(this);
 
@@ -4232,7 +4359,10 @@ var Request = this.Request = new Class({
 		this.running = false;
 		var xhr = this.xhr;
 		xhr.abort();
-		clearTimeout(this.timer);
+		if (this.timer){
+			clearTimeout(this.timer);
+			delete this.timer;
+		}
 		xhr.onreadystatechange = empty;
 		if (progressSupport) xhr.onprogress = xhr.onloadstart = empty;
 		this.xhr = new Browser.Request();
@@ -4243,7 +4373,7 @@ var Request = this.Request = new Class({
 });
 
 var methods = {};
-['get', 'post', 'put', 'delete', 'GET', 'POST', 'PUT', 'DELETE'].each(function(method){
+['get', 'post', 'put', 'delete', 'patch', 'head', 'GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD'].each(function(method){
 	methods[method] = function(data){
 		var object = {
 			method: method
@@ -4358,10 +4488,16 @@ JSON.encode = JSON.stringify ? function(obj){
 	return null;
 };
 
+JSON.secure = true;
+//<1.4compat>
+JSON.secure = false;
+//</1.4compat>
+
 JSON.decode = function(string, secure){
 	if (!string || typeOf(string) != 'string') return null;
-
-	if (secure || JSON.secure){
+    
+	if (secure == null) secure = JSON.secure; 
+	if (secure){
 		if (JSON.parse) return JSON.parse(string);
 		if (!JSON.validate(string)) throw new Error('JSON could not decode the input; security is enabled and the value is not secure.');
 	}
@@ -4730,19 +4866,7 @@ el = null;
 //</ltIE9>
 
 var hasGetComputedStyle = !!window.getComputedStyle,
-	brokenGetComputedStyle = !hasGetComputedStyle; // Opera rounds sub-pixel values
-
-//<opera>
-if (hasGetComputedStyle){
-	el = document.createElement('div');
-	el.style.display = 'none';
-	var padding = el.style.paddingLeft = '1.5px';
-	document.html.appendChild(el);
-	brokenGetComputedStyle = window.getComputedStyle(el, null).paddingLeft != padding;
-	document.html.removeChild(el);
-	el = null;
-}
-//</opera>
+	supportBorderRadius = document.createElement('div').style.borderRadius != null;
 
 Element.Properties.styles = {set: function(styles){
 	this.setStyles(styles);
@@ -4809,7 +4933,7 @@ var removeStyle = function(style, property){
 Element.implement({
 
 	getComputedStyle: function(property){
-		if ((!hasGetComputedStyle || brokenGetComputedStyle) && this.currentStyle) return this.currentStyle[property.camelCase()];
+		if (!hasGetComputedStyle && this.currentStyle) return this.currentStyle[property.camelCase()];
 		var defaultView = Element.getDocument(this).defaultView,
 			computed = defaultView ? defaultView.getComputedStyle(this, null) : null;
 		return (computed) ? computed.getPropertyValue((property == floatName) ? 'float' : property.hyphenate()) : '';
@@ -4843,6 +4967,11 @@ Element.implement({
 	getStyle: function(property){
 		if (property == 'opacity') return getOpacity(this);
 		property = (property == 'float' ? floatName : property).camelCase();
+		if (supportBorderRadius && property.indexOf('borderRadius') != -1){
+			return ['borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomRightRadius', 'borderBottomLeftRadius'].map(function(corner){
+				return this.style[corner] || '0px';
+			}, this).join(' ');
+		}
 		var result = this.style[property];
 		if (!result || property == 'zIndex'){
 			if (Element.ShortStyles.hasOwnProperty(property)){
@@ -4863,7 +4992,7 @@ Element.implement({
 			var color = result.match(/rgba?\([\d\s,]+\)/);
 			if (color) result = result.replace(color[0], color[0].rgbToHex());
 		}
-		if (!hasGetComputedStyle || brokenGetComputedStyle){
+		if (!hasGetComputedStyle && !this.style[property]){
 			if ((/^(height|width)$/).test(property) && !(/px$/.test(result))){
 				var values = (property == 'width') ? ['left', 'right'] : ['top', 'bottom'], size = 0;
 				values.each(function(value){
@@ -4880,6 +5009,7 @@ Element.implement({
 			return result.replace(/^(.+)\s(.+)\s(.+)$/, '$2 $3 $1');
 		}
 		//</ltIE9>
+
 		return result;
 	},
 
@@ -4905,7 +5035,7 @@ Element.Styles = {
 	fontSize: '@px', letterSpacing: '@px', lineHeight: '@px', clip: 'rect(@px @px @px @px)',
 	margin: '@px @px @px @px', padding: '@px @px @px @px', border: '@px @ rgb(@, @, @) @px @ rgb(@, @, @) @px @ rgb(@, @, @)',
 	borderWidth: '@px @px @px @px', borderStyle: '@ @ @ @', borderColor: 'rgb(@, @, @) rgb(@, @, @) rgb(@, @, @) rgb(@, @, @)',
-	zIndex: '@', 'zoom': '@', fontWeight: '@', textIndent: '@px', opacity: '@'
+	zIndex: '@', 'zoom': '@', fontWeight: '@', textIndent: '@px', opacity: '@', borderRadius: '@px @px @px @px'
 };
 
 //<1.3compat>
@@ -5288,8 +5418,8 @@ provides: [MooTools.More]
 */
 
 MooTools.More = {
-	version: '1.4.3.1dev',
-	build: '%build%'
+	version: '1.5.1',
+	build: '2dd695ba957196ae4b0275a690765d6636a61ccd'
 };
 
 
@@ -5309,7 +5439,7 @@ authors:
 
 requires:
   - Core/Class
-  - /MooTools.More
+  - MooTools.More
 
 # Some modules declare themselves dependent on Class.Refactor
 provides: [Class.refactor, Class.Refactor]
@@ -5352,9 +5482,19 @@ provides: Event
 ...
 */
 
-(function() {
+(function(){
 
 var _keys = {};
+var normalizeWheelSpeed = function(event){
+    var normalized;
+    if (event.wheelDelta){
+        normalized = event.wheelDelta % 120 == 0 ? event.wheelDelta / 120 : event.wheelDelta / 12;
+    } else {
+        var rawAmount = event.deltaY || event.detail || 0;
+        normalized = -(rawAmount % 3 == 0 ? rawAmount / 3 : rawAmount * 10);
+    }
+    return normalized;
+}
 
 var DOMEvent = this.DOMEvent = new Type('DOMEvent', function(event, win){
 	if (!win) win = window;
@@ -5379,7 +5519,7 @@ var DOMEvent = this.DOMEvent = new Type('DOMEvent', function(event, win){
 			else if (code > 95 && code < 106) this.key = code - 96;
 		}
 		if (this.key == null) this.key = String.fromCharCode(code).toLowerCase();
-	} else if (type == 'click' || type == 'dblclick' || type == 'contextmenu' || type == 'DOMMouseScroll' || type.indexOf('mouse') == 0){
+	} else if (type == 'click' || type == 'dblclick' || type == 'contextmenu' || type == 'wheel' || type == 'DOMMouseScroll' || type.indexOf('mouse') == 0){
 		var doc = win.document;
 		doc = (!doc.compatMode || doc.compatMode == 'CSS1Compat') ? doc.html : doc.body;
 		this.page = {
@@ -5390,9 +5530,7 @@ var DOMEvent = this.DOMEvent = new Type('DOMEvent', function(event, win){
 			x: (event.pageX != null) ? event.pageX - win.pageXOffset : event.clientX,
 			y: (event.pageY != null) ? event.pageY - win.pageYOffset : event.clientY
 		};
-		if (type == 'DOMMouseScroll' || type == 'mousewheel')
-			this.wheel = (event.wheelDelta) ? event.wheelDelta / 120 : -(event.detail || 0) / 3;
-
+		if (type == 'DOMMouseScroll' || type == 'wheel' || type == 'mousewheel') this.wheel = normalizeWheelSpeed(event);
 		this.rightClick = (event.which == 3 || event.button == 2);
 		if (type == 'mouseover' || type == 'mouseout'){
 			var related = event.relatedTarget || event[(type == 'mouseover' ? 'from' : 'to') + 'Element'];
@@ -5595,7 +5733,7 @@ Element.Properties.events = {set: function(events){
 
 Element.NativeEvents = {
 	click: 2, dblclick: 2, mouseup: 2, mousedown: 2, contextmenu: 2, //mouse buttons
-	mousewheel: 2, DOMMouseScroll: 2, //mouse wheel
+	wheel: 2, mousewheel: 2, DOMMouseScroll: 2, //mouse wheel
 	mouseover: 2, mouseout: 2, mousemove: 2, selectstart: 2, selectend: 2, //mouse movement
 	keydown: 2, keypress: 2, keyup: 2, //keyboard
 	orientationchange: 2, // mobile
@@ -5604,12 +5742,14 @@ Element.NativeEvents = {
 	focus: 2, blur: 2, change: 2, reset: 2, select: 2, submit: 2, paste: 2, input: 2, //form elements
 	load: 2, unload: 1, beforeunload: 2, resize: 1, move: 1, DOMContentLoaded: 1, readystatechange: 1, //window
 	hashchange: 1, popstate: 2, // history
-	error: 1, abort: 1, scroll: 1 //misc
+	error: 1, abort: 1, scroll: 1, message: 2 //misc
 };
 
-Element.Events = {mousewheel: {
-	base: (Browser.firefox) ? 'DOMMouseScroll' : 'mousewheel'
-}};
+Element.Events = {
+	mousewheel: {
+		base: 'onwheel' in document ? 'wheel' : 'onmousewheel' in document ? 'mousewheel' : 'DOMMouseScroll'
+	}
+};
 
 var check = function(event){
 	var related = event.relatedTarget;
@@ -5673,7 +5813,7 @@ authors:
 
 requires:
   - Core/Class
-  - /MooTools.More
+  - MooTools.More
 
 provides: [Class.Binds]
 
@@ -5725,6 +5865,23 @@ element.appendChild(child);
 var brokenOffsetParent = (child.offsetParent === element);
 element = child = null;
 
+var heightComponents = ['height', 'paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth'],
+	widthComponents = ['width', 'paddingLeft', 'paddingRight', 'borderLeftWidth', 'borderRightWidth'];
+
+var svgCalculateSize = function(el){
+
+	var gCS = window.getComputedStyle(el),
+		bounds = {x: 0, y: 0};
+
+	heightComponents.each(function(css){
+		bounds.y += parseFloat(gCS[css]);
+	});
+	widthComponents.each(function(css){
+		bounds.x += parseFloat(gCS[css]);
+	});
+	return bounds;
+};
+
 var isOffset = function(el){
 	return styleString(el, 'position') != 'static' || isBody(el);
 };
@@ -5747,7 +5904,18 @@ Element.implement({
 
 	getSize: function(){
 		if (isBody(this)) return this.getWindow().getSize();
-		return {x: this.offsetWidth, y: this.offsetHeight};
+
+		//<ltIE9>
+		// This if clause is because IE8- cannot calculate getBoundingClientRect of elements with visibility hidden.
+		if (!window.getComputedStyle) return {x: this.offsetWidth, y: this.offsetHeight};
+		//</ltIE9>
+
+		// This svg section under, calling `svgCalculateSize()`, can be removed when FF fixed the svg size bug.
+		// Bug info: https://bugzilla.mozilla.org/show_bug.cgi?id=530985
+		if (this.get('tag') == 'svg') return svgCalculateSize(this);
+		
+		var bounds = this.getBoundingClientRect();
+		return {x: bounds.width, y: bounds.height};
 	},
 
 	getScrollSize: function(){
@@ -5785,12 +5953,16 @@ Element.implement({
 
 		try {
 			return element.offsetParent;
-		} catch(e) {}
+		} catch(e){}
 		return null;
 	},
 
 	getOffsets: function(){
-		if (this.getBoundingClientRect && !Browser.Platform.ios){
+		var hasGetBoundingClientRect = this.getBoundingClientRect;
+//<1.4compat>
+		hasGetBoundingClientRect = hasGetBoundingClientRect && !Browser.Platform.ios
+//</1.4compat>
+		if (hasGetBoundingClientRect){
 			var bound = this.getBoundingClientRect(),
 				html = document.id(this.getDocument().documentElement),
 				htmlScroll = html.getScroll(),
@@ -5799,7 +5971,7 @@ Element.implement({
 
 			return {
 				x: bound.left.toInt() + elemScrolls.x + ((isFixed) ? 0 : htmlScroll.x) - html.clientLeft,
-				y: bound.top.toInt()  + elemScrolls.y + ((isFixed) ? 0 : htmlScroll.y) - html.clientTop
+				y: bound.top.toInt() + elemScrolls.y + ((isFixed) ? 0 : htmlScroll.y) - html.clientTop
 			};
 		}
 
@@ -5809,7 +5981,7 @@ Element.implement({
 		while (element && !isBody(element)){
 			position.x += element.offsetLeft;
 			position.y += element.offsetTop;
-
+//<1.4compat>
 			if (Browser.firefox){
 				if (!borderBox(element)){
 					position.x += leftBorder(element);
@@ -5824,13 +5996,15 @@ Element.implement({
 				position.x += leftBorder(element);
 				position.y += topBorder(element);
 			}
-
+//</1.4compat>
 			element = element.offsetParent;
 		}
+//<1.4compat>
 		if (Browser.firefox && !borderBox(this)){
 			position.x -= leftBorder(this);
 			position.y -= topBorder(this);
 		}
+//</1.4compat>
 		return position;
 	},
 
@@ -5999,7 +6173,7 @@ authors:
 requires:
   - Core/Element.Style
   - Core/Element.Dimensions
-  - /MooTools.More
+  - MooTools.More
 
 provides: [Element.Measure]
 
@@ -6219,13 +6393,15 @@ var local = Element.Position = {
 	},
 
 	setOffsetOption: function(element, options){
-		var parentOffset = {x: 0, y: 0},
-			offsetParent = element.measure(function(){
-				return document.id(this.getOffsetParent());
-			}),
-			parentScroll = offsetParent.getScroll();
+		var parentOffset = {x: 0, y: 0};
+		var parentScroll = {x: 0, y: 0};
+		var offsetParent = element.measure(function(){
+			return document.id(this.getOffsetParent());
+		});
 
 		if (!offsetParent || offsetParent == element.getDocument().body) return;
+
+		parentScroll = offsetParent.getScroll();
 		parentOffset = offsetParent.measure(function(){
 			var position = this.getPosition();
 			if (this.getStyle('position') == 'fixed'){
@@ -6406,7 +6582,7 @@ authors:
 requires:
   - Core/Class
   - Core/Element
-  - /MooTools.More
+  - MooTools.More
 
 provides: [Class.Occlude]
 
@@ -6448,15 +6624,22 @@ requires:
   - Core/Element.Style
   - Core/Options
   - Core/Events
-  - /Element.Position
-  - /Class.Occlude
+  - Element.Position
+  - Class.Occlude
 
 provides: [IframeShim]
 
 ...
 */
 
-var IframeShim = new Class({
+(function(){
+
+var browsers = false;
+//<1.4compat>
+browsers = Browser.ie6 || (Browser.firefox && Browser.version < 3 && Browser.Platform.mac);
+//</1.4compat>
+
+this.IframeShim = new Class({
 
 	Implements: [Options, Events, Class.Occlude],
 
@@ -6467,7 +6650,7 @@ var IframeShim = new Class({
 		zIndex: null,
 		margin: 0,
 		offset: {x: 0, y: 0},
-		browsers: (Browser.ie6 || (Browser.firefox && Browser.version < 3 && Browser.Platform.mac))
+		browsers: browsers
 	},
 
 	property: 'IframeShim',
@@ -6556,6 +6739,8 @@ var IframeShim = new Class({
 
 });
 
+})();
+
 window.addEvent('load', function(){
 	IframeShim.ready = true;
 });
@@ -6579,9 +6764,9 @@ requires:
   - Core/Options
   - Core/Events
   - Core/Element.Event
-  - /Class.Binds
-  - /Element.Position
-  - /IframeShim
+  - Class.Binds
+  - Element.Position
+  - IframeShim
 
 provides: [Mask]
 
@@ -6791,8 +6976,8 @@ authors:
 requires:
   - Core/Fx.Tween
   - Core/Request
-  - /Class.refactor
-  - /Mask
+  - Class.refactor
+  - Mask
 
 provides: [Spinner]
 
@@ -6866,6 +7051,7 @@ var Spinner = new Class({
 			return this;
 		}
 
+		this.target.set('aria-busy', 'true');
 		this.active = true;
 
 		return this.parent(noFx);
@@ -6900,7 +7086,10 @@ var Spinner = new Class({
 			this.callChain.delay(20, this);
 			return this;
 		}
+
+		this.target.set('aria-busy', 'false');
 		this.active = true;
+
 		return this.parent(noFx);
 	},
 
@@ -7051,7 +7240,10 @@ var formObserver = function(type){
 		remove: function(self, uid){
 			var list = self.retrieve(_key + type + 'listeners', {})[uid];
 			if (list && list.forms) for (var i = list.forms.length; i--;){
-				list.forms[i].removeEvent(type, list.fns[i]);
+				// the form may have been destroyed, so it won't have the
+				// removeEvent method anymore. In that case the event was
+				// removed as well.
+				if (list.forms[i].removeEvent) list.forms[i].removeEvent(type, list.fns[i]);
 			}
 		},
 
@@ -7211,7 +7403,7 @@ authors:
 
 requires:
   - Core/Object
-  - /MooTools.More
+  - MooTools.More
 
 provides: [Object.Extras]
 
@@ -7280,8 +7472,8 @@ authors:
 
 requires:
   - Core/Events
-  - /Object.Extras
-  - /MooTools.More
+  - Object.Extras
+  - MooTools.More
 
 provides: [Locale, Lang]
 
@@ -7466,7 +7658,7 @@ authors:
   - Aaron Newton
 
 requires:
-  - /Locale
+  - Locale
 
 provides: [Locale.en-US.Date]
 
@@ -8140,10 +8332,8 @@ var special = {
 	'S': /[ŠŞŚ]/g,
 	't': /[ťţ]/g,
 	'T': /[ŤŢ]/g,
-	'ue': /[ü]/g,
-	'UE': /[Ü]/g,
-	'u': /[ùúûůµ]/g,
-	'U': /[ÙÚÛŮ]/g,
+	'u': /[ùúûůüµ]/g,
+	'U': /[ÙÚÛŮÜ]/g,
 	'y': /[ÿý]/g,
 	'Y': /[ŸÝ]/g,
 	'z': /[žźż]/g,
@@ -8269,8 +8459,8 @@ authors:
 
 requires:
   - Core/Element
-  - /String.Extras
-  - /MooTools.More
+  - String.Extras
+  - MooTools.More
 
 provides: [Element.Forms]
 
@@ -8408,7 +8598,7 @@ authors:
   - Aaron Newton
 
 requires:
-  - /Locale
+  - Locale
 
 provides: [Locale.en-US.Form.Validator]
 
@@ -8443,7 +8633,7 @@ Locale.define('en-US', 'FormValidator', {
 	match: 'This field needs to match the {matchName} field',
 	startDate: 'the start date',
 	endDate: 'the end date',
-	currendDate: 'the current date',
+	currentDate: 'the current date',
 	afterDate: 'The date should be the same or after {label}.',
 	beforeDate: 'The date should be the same or before {label}.',
 	startMonth: 'Please select a start month',
@@ -8469,7 +8659,7 @@ authors:
 
 requires:
   - Core/Element.Style
-  - /MooTools.More
+  - MooTools.More
 
 provides: [Element.Shortcuts]
 
@@ -8553,12 +8743,12 @@ requires:
   - Core/Element.Event
   - Core/Element.Style
   - Core/JSON
-  - /Locale
-  - /Class.Binds
-  - /Date
-  - /Element.Forms
-  - /Locale.en-US.Form.Validator
-  - /Element.Shortcuts
+  - Locale
+  - Class.Binds
+  - Date
+  - Element.Forms
+  - Locale.en-US.Form.Validator
+  - Element.Shortcuts
 
 provides: [Form.Validator, InputValidator, FormValidator.BaseValidators]
 
@@ -8618,7 +8808,7 @@ Element.Properties.validatorProps = {
 		if (this.retrieve('$moo:validatorProps')) return this.retrieve('$moo:validatorProps');
 		if (this.getProperty('data-validator-properties') || this.getProperty('validatorProps')){
 			try {
-				this.store('$moo:validatorProps', JSON.decode(this.getProperty('validatorProps') || this.getProperty('data-validator-properties')));
+				this.store('$moo:validatorProps', JSON.decode(this.getProperty('validatorProps') || this.getProperty('data-validator-properties'), false));
 			}catch(e){
 				return {};
 			}
@@ -8634,7 +8824,7 @@ Element.Properties.validatorProps = {
 					var split = cls.split(':');
 					if (split[1]){
 						try {
-							props[split[0]] = JSON.decode(split[1]);
+							props[split[0]] = JSON.decode(split[1], false);
 						} catch(e){}
 					}
 				});
@@ -8790,7 +8980,7 @@ Form.Validator = new Class({
 		var validator = this.getValidator(className);
 		if (warn != null) warn = false;
 		if (this.hasValidator(field, 'warnOnly')) warn = true;
-		var isValid = this.hasValidator(field, 'ignoreValidation') || (validator ? validator.test(field) : true);
+		var isValid = field.hasClass('ignoreValidation') || (validator ? validator.test(field) : true);
 		if (validator) this.fireEvent('elementValidate', [isValid, field, className, warn]);
 		if (warn) return true;
 		return isValid;
@@ -8988,13 +9178,15 @@ Form.Validator.addAllThese([
 				value = element.get('value'),
 				wordsInValue = value.match(/[a-z]+/gi);
 
-				if (wordsInValue && !wordsInValue.every(dateNouns.exec, dateNouns)) return false;
+			if (wordsInValue && !wordsInValue.every(dateNouns.exec, dateNouns)) return false;
 
-				var date = Date.parse(value),
-					format = props.dateFormat || '%x',
-					formatted = date.format(format);
-				if (formatted != 'invalid date') element.set('value', formatted);
-				return date.isValid();
+			var date = Date.parse(value);
+			if (!date) return false;
+
+			var format = props.dateFormat || '%x',
+				formatted = date.format(format);
+			if (formatted != 'invalid date') element.set('value', formatted);
+			return date.isValid();
 		}
 	}],
 
@@ -9096,7 +9288,7 @@ authors:
   - Aaron Newton
 
 requires:
-  - /Form.Validator
+  - Form.Validator
 
 provides: [Form.Validator.Inline]
 
@@ -9288,7 +9480,7 @@ authors:
   - Aaron Newton
 
 requires:
-  - /Form.Validator
+  - Form.Validator
 
 provides: [Form.Validator.Extras]
 
@@ -9469,7 +9661,8 @@ Form.Validator.addAllThese([
 			if (ccNum.test(/^4[0-9]{12}([0-9]{3})?$/)) valid_type = 'Visa';
 			else if (ccNum.test(/^5[1-5]([0-9]{14})$/)) valid_type = 'Master Card';
 			else if (ccNum.test(/^3[47][0-9]{13}$/)) valid_type = 'American Express';
-			else if (ccNum.test(/^6011[0-9]{12}$/)) valid_type = 'Discover';
+			else if (ccNum.test(/^6(?:011|5[0-9]{2})[0-9]{12}$/)) valid_type = 'Discover';
+			else if (ccNum.test(/^3(?:0[0-5]|[68][0-9])[0-9]{11}$/)) valid_type = 'Diners Club';
 
 			if (valid_type){
 				var sum = 0;
@@ -9543,7 +9736,11 @@ var PopupForm = new Class({
 
     options: {
         container_class: 'over_mask', // The class for the form container
-        mask_options: {},
+        mask_options: {
+            onShow: function() {
+                this.element.setStyle('position', 'fixed');
+            }
+        },
         show_mask_immediately: true, // Set to false to show the mask after loading
         popup_id: 'popup_item', // ID to give the popup container so we can easily access it to close it.
         posting_data: null, // The posting data (query string) when getting the form
@@ -9571,6 +9768,13 @@ var PopupForm = new Class({
         // Create the mask
         // Add a click event for the item
         item.addEvent(this.options.event_type, this.open_form.bind(this));
+
+        // Any anchors within here should not propagate
+        item.getElements('a').each(function(a) {
+            a.addEvent(this.options.event_type, function(e) {
+                e.stopPropagation();
+            });
+        },this);
 
         this.close_form_function = function(e) {
             e.stop();
@@ -9624,8 +9828,11 @@ var PopupForm = new Class({
         }
     },
     process_form: function() {
+        this.process_form_content(this.container);
+    },
+    process_form_content: function(container) {
         //this.mask.show();
-        this.container.getElements(this.options.cancel_selector).each(function(item) {
+        container.getElements(this.options.cancel_selector).each(function(item) {
             item.addEvent('click', this.close_form_function);
         }, this);
         if (this.options.any_click_cancels) {
@@ -9635,12 +9842,12 @@ var PopupForm = new Class({
             this.esc_test_bound = this.esc_test.bind(this);
             $(document.body).addEvent('keyup', this.esc_test_bound);
         }
-        this.container.getElements(this.options.close_anchor).each(function(item) {
+        container.getElements(this.options.close_anchor).each(function(item) {
             // Don't use the close_formr_function here because we want the event to propogate
             item.addEvent('click', this.close_form.bind(this));
         }, this);
-        this.container.getElements('form').each(this.store_data_into_form.bind(this));
-        this.options.content_processor(this.container);
+        container.getElements('form').each(this.store_data_into_form.bind(this));
+        this.options.content_processor(container);
         // Move the document scroll to the top, saving the current scroll location
         this.saved_scroll = $(document.body).getScroll();
         $(document.body).scrollTo(0, 0);
@@ -9657,6 +9864,7 @@ var PopupForm = new Class({
             this.container.addClass(this.options.hidden_class);
         }.bind(this));
         form.store('onComplete', this.close_form.bind(this));
+        form.store('processContent', this.process_form_content.bind(this));
     },
     close_form: function(json) {
         // Make sure we have a form
@@ -9786,6 +9994,13 @@ PopupForm.JSONProcessor = new Class({
             if (json.redirect_blank) {
                 window.open(json.redirect_blank, '_blank');
             }
+            // Delete any elements now
+            if (json.delete_dom) {
+                var delete_dom = $(json.delete_dom);
+                if ($chk(delete_dom)) {
+                    delete_dom.destroy();
+                }
+            }
             // Check for fields to set
             if (json.fields) {
                 json.fields.each(function(field) {
@@ -9813,7 +10028,7 @@ PopupForm.JSONProcessor = new Class({
                 } else {
                     target.set('html', json.html);
                 }
-                this.options.content_processor(target);
+                this.process_content(target);
                 // We can receive json.sortable_target to add the target to the sortable instance
                 // stored in sortable_target
                 if (json.sortable_target && $(json.sortable_target)) {
@@ -9826,7 +10041,7 @@ PopupForm.JSONProcessor = new Class({
 
             if (json.setHtml && this.item) {
                 this.item.set('html', json.setHtml);
-                this.options.content_processor(this.item);
+                this.process_content(this.item);
             }
 
             if (json.elements) {
@@ -9834,6 +10049,9 @@ PopupForm.JSONProcessor = new Class({
                     var target;
                     if (element.target) {
                         target = $(element.target);
+                        if (!target) {
+                            return;
+                        }
                         if (element.html) {
                             if (element.add_to_target) {
                                 var htmlelement = new Element('div');
@@ -9846,7 +10064,7 @@ PopupForm.JSONProcessor = new Class({
                             } else {
                                 target.set('html', element.html);
                             }
-                            this.options.content_processor(target);
+                            this.process_content(target);
                             // We can receive element.sortable_target to add the target to the sortable instance
                             // stored in sortable_target
                             if ($chk(element.sortable_target) && $chk($(element.sortable_target))) {
@@ -9855,6 +10073,15 @@ PopupForm.JSONProcessor = new Class({
                                     sortable.addLists(target.getChildren());
                                 }
                             }
+                        }
+                        if (element.url) {
+                            var req = new Request.HTML({
+                                'url': element.url,
+                                'update': target,
+                                'onSuccess': function() {
+                                    this.process_content(target);
+                                }.bind(this)
+                            }).post();
                         }
                         if (element.attributes) {
                             element.attributes.each(function(attribute) {
@@ -9884,16 +10111,10 @@ PopupForm.JSONProcessor = new Class({
                         'url': json.url,
                         'update': load_div,
                         onComplete: function() {
-                            this.options.content_processor(load_div);
+                            this.process_content(load_div);
                             load_div.fireEvent('change');
                         }.bind(this)
                     }).post();
-                }
-            }
-            if (json.delete_dom) {
-                var delete_dom = $(json.delete_dom);
-                if ($chk(delete_dom)) {
-                    delete_dom.destroy();
                 }
             }
 
@@ -9919,8 +10140,12 @@ PopupForm.JSONProcessor = new Class({
                 }
             }
         }
+    },
+    process_content: function(div) {
+        this.options.content_processor(div);
     }
-})
+});
+
 
 /*
 ---
@@ -9949,26 +10174,36 @@ provides: PopupForm.AjaxForm
 /*
  AjaxForm is a class that will submit a form via Ajax so you don't have to actually submit the form.
  The posting URL should be in the rel tag of the form container, or can be the action for the form.
-
+ 
  The form will have an additional input, name set in options.ajax_form_field, with a value of "1".
  Use this to verify that the form was indeed submitted via the ajax form, or if the user had javascript turned off.
  It also posts a variable 'HTTP_REFERER' (options.referer_field) that contains the URL of the referer, for
  IE who doesn't pass that in the headers.
-
- When the form is submitted, the resulting JSON is passed to the JSONProcessor.  In addition, the following can be returned:
- - If a message is returned, the form will not execute the completion function unless a value for execute_complete is passed as well.
- - clear_form: Will reset the form.
- - keep_open: Do not execute the complete function
- - execute_complete: Execute the complete function, regardless of any decisions prior.
-
+ 
+ When the form is submitted, a JSON data structure is expected.  It can contain:
+ 
+ message: an alert message will contain this to display to the user
+ redirect: this can contain a URL that the page is redirected to
+ redirect_blank: This can contain a URL that the page is redirected to but the script continues to evaluate.
+ fields: an array of fields that we want to set within the form [{field:id,value:name},{field:id,value:name}]
+ target: If there is no target_selector in the options, this is also tested to see if it exists to be used as a target
+ html: populate the target_selector DOM with this html.
+ sortable_target: If the target is sortable, this is the master element that contains the sortable instance
+ load_div: a selector for a DOM element to load.  Requires url
+ url: The url for load_div
+ keep_open: If true, will not close the form.
+ delete_dom: a selector (id) of a DOM element we want to have deleted.
+ execute: a function that we want to execute upon completion
+ fire_event: 2-part array, first is an id, second is the event to fire on that element.
+ 
  An optional spinner may be used during the form processing.  See the options for details.
-
+ 
  Store in the form 'onSubmit' a function to execute when the form is submitted.
  Store 'onComplete' a function to execute when the form submission gets returned, receives the json as the argument
  Store 'onFail' a function to execute if the form submission fails, receives the json as the argument
-
+ 
  You can require confirmation by putting in the rel tag an object with key 'confirm' and the confirmation message.
-
+ 
  If you want to upload a file, you can do that with an <input type="file"> element.  The form will automatically
  create an iframe to process the upload, and will also set the enctype correctly.  Treat the upload like any
  other form submission.
@@ -9988,17 +10223,19 @@ PopupForm.AjaxForm = new Class({
         ajax_form_field: 'ajax_form',
         referer_field: 'HTTP_REFERER',
         spinner_container: null,
+        prevent_enter: false, // If true, the enter key will not submit the form
         spinner_options: {
             message: 'Please Wait...',
             fxOptions: {duration: 300}
         },
         submit_selector: null,
         remove_custom_submit_events: true, // Remove any custom submit events
+        target_selector: null, // If set and html is returned in the json, fill object with the html
         content_processor: $empty, // Function to execute on content if loaded
         hidden_class: 'hidden',
         force_iframe_class: 'force_iframe' // add this class to force an iframe even if no file element is found.
     },
-    initialize: function(form, op) {
+    initialize: function (form, op) {
         var current_form = form.retrieve('current_form');
         if ($chk(current_form)) {
             return;
@@ -10011,37 +10248,44 @@ PopupForm.AjaxForm = new Class({
         if (this.options.remove_custom_submit_events) {
             form.removeEvents('submit');
         }
-        form.addEvent('submit', function(event) {
+        form.addEvent('submit', function (event) {
             if ($chk(event)) {
                 event.stop();
+                if (this.options.prevent_enter) {
+                    if (event.key == 'enter') {
+                        return;
+                    }
+                }
             }
             this.submit_form(event);
         }.bind(this));
         if (this.options.submit_selector) {
-            form.getElements(this.options.submit_selector).each(function(submit) {
-                submit.addEvent('click', function(e) {
+            form.getElements(this.options.submit_selector).each(function (submit) {
+                submit.addEvent('click', function (e) {
                     form.fireEvent('submit');
                     e.stop();
                 });
             });
         }
         // Attach a submit event to all input and select elements on keyup = 'enter'
-        form.getElements('input').each(function(input) {
-            input.addEvent('keydown', function(e) {
-                if (e.key == 'enter') {
-                    form.fireEvent('submit');
-                    e.stop();
-                }
+        if (!this.options.prevent_enter) {
+            form.getElements('input').each(function (input) {
+                input.addEvent('keydown', function (e) {
+                    if (e.key == 'enter') {
+                        form.fireEvent('submit');
+                        e.stop();
+                    }
+                });
             });
-        });
-        form.getElements('select').each(function(input) {
-            input.addEvent('keydown', function(e) {
-                if (e.key == 'enter') {
-                    form.fireEvent('submit');
-                    e.stop();
-                }
+            form.getElements('select').each(function (input) {
+                input.addEvent('keydown', function (e) {
+                    if (e.key == 'enter') {
+                        form.fireEvent('submit');
+                        e.stop();
+                    }
+                });
             });
-        });
+        }
         if (this.options.use_spinner) {
             this.spinner = new Spinner(this.options.spinner_container, this.options.spinner_options);
         }
@@ -10066,7 +10310,7 @@ PopupForm.AjaxForm = new Class({
         }
         // Look to see if we have any files, if we do we have to submit the form through an iframe.
         var has_file = false;
-        form.getElements('input').each(function(item) {
+        form.getElements('input').each(function (item) {
             if (item.get('type') == 'file') {
                 has_file = true;
             }
@@ -10084,7 +10328,7 @@ PopupForm.AjaxForm = new Class({
             form.set('target', id);
         }
     },
-    get_label: function(item) {
+    get_label: function (item) {
         // When passed an item, returns the label if we can find it.
         var label;
         label = item.getPrevious('label');
@@ -10100,7 +10344,7 @@ PopupForm.AjaxForm = new Class({
             return this.get_label(item.getParent());
         }
     },
-    submit_form: function(e) {
+    submit_form: function (e) {
         // Check for a confirm in the rel tag
         var rel = this.form.get('rel');
         if ($chk(rel)) {
@@ -10187,13 +10431,13 @@ PopupForm.AjaxForm = new Class({
             }
         }
     },
-    form_failure: function() {
+    form_failure: function () {
         if (this.options.use_spinner) {
             this.spinner.hide();
         }
         alert('An error has occurred. Please try again.');
     },
-    form_success: function(json) {
+    form_success: function (json) {
         this.options.onFormSuccess(json);
         if (this.options.hidden_class) {
             this.form.removeClass(this.options.hidden_class);
@@ -10238,13 +10482,6 @@ PopupForm.AjaxForm = new Class({
         if (execute_complete) {
             var complete_action = this.form.retrieve('onComplete');
             if (complete_action) {
-                // Destroy the iframe in the future, it must still be loading.
-                /* Removing this, because in a popup if we don't close the form we lose the ability to submit.
-                 if ($chk(this.iframe)) {
-                 var delete_iframe = function(){this.iframe.destroy()};
-                 delete_iframe.delay(1000,this);
-                 }
-                 */
                 complete_action(json);
             }
         } else {
@@ -10252,6 +10489,15 @@ PopupForm.AjaxForm = new Class({
             if (fail_action) {
                 fail_action(json);
             }
+        }
+    },
+    process_content: function (div) {
+        // Call the parent content processor
+        this.parent(div);
+        // See if we have a processContent stored in the form
+        var processContent = this.form.retrieve('processContent');
+        if (processContent) {
+            processContent(div);
         }
     }
 });
@@ -10284,12 +10530,14 @@ var ready,
 
 var domready = function(){
 	clearTimeout(timer);
-	if (ready) return;
-	Browser.loaded = ready = true;
-	document.removeListener('DOMContentLoaded', domready).removeListener('readystatechange', check);
-
-	document.fireEvent('domready');
-	window.fireEvent('domready');
+	if (!ready) {
+		Browser.loaded = ready = true;
+		document.removeListener('DOMContentLoaded', domready).removeListener('readystatechange', check);
+		document.fireEvent('domready');
+		window.fireEvent('domready');
+	}
+	// cleanup scope vars
+	document = window = testElement = null;
 };
 
 var check = function(){
